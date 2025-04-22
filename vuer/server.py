@@ -338,6 +338,7 @@ class Vuer(PrefixProto, Server):
     key: str = Proto(None, dtype=str, help="the path to the SSL key")
     ca_cert: str = Proto(None, dtype=str, help="the trusted root CA certificates")
 
+    client: str = Proto("client_build", dtype=str, help="set client")
     client_root: Path = Path(__file__).parent / "client_build"
 
     verbose = Flag("Print the settings if True.")
@@ -787,6 +788,7 @@ class Vuer(PrefixProto, Server):
             kill_ports(ports=[self.port])
             time.sleep(0.01)
 
+        self.client_root: Path = Path(__file__).parent / self.client
         # Serve the client build locally.
         # self._socket("", self.downlink)
         # self._static_file("", Path(__file__).parent / "client_build", filename="index.html")

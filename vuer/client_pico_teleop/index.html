@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Get Pico VR Controller Pose</title>
+    <script src="/assets/aframe-master.min.js"></script>
+    <script src="/assets/msgpack.min.js"></script>
+</head>
+
+<body>
+    <a-scene xr="optional: true" background="color: #222">
+        <a-plane id="image-display" position="0 1.5 -2" width="3" height="2" rotation="0 0 0"></a-plane>
+        <a-entity id="right-control" meta-touch-controls="hand: right" position rotation track-pose></a-entity>
+        <a-entity id="left-control" meta-touch-controls="hand: left" position rotation track-pose></a-entity>
+
+        <!-- <a-entity id="debug_console" position="-0.4 1.8 -0.4" text="anchor: left; width: 1; color: white; value: log"> -->
+        </a-entity>
+    </a-scene>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const wsUrl = urlParams.get('ws');
+        const socket = new WebSocket(wsUrl)
+        const imageDisplay = document.querySelector('#image-display');
+        let abutton = 'up';
+        let bbutton = 'up';
+        let xbutton = 'up';
+        let ybutton = 'up';
+        
+        // Register a custom component to listen to controller pose data
+        AFRAME.registerComponent('track-pose', {
+            schema: { type: 'string' },
+            
+            init: function () {
+                var sceneEl = document.querySelector('a-scene');
+                sceneEl.querySelector('#right-control').addEventListener('abuttondown', function() {abutton = 'down'});
+                sceneEl.querySelector('#right-control').addEventListener('abuttonup', function() {abutton = 'up'});
+                sceneEl.querySelector('#right-control').addEventListener('bbuttondown', function() {bbutton = 'down'});
+                sceneEl.querySelector('#right-control').addEventListener('bbuttonup', function() {bbutton = 'up'});
+
+                sceneEl.querySelector('#left-control').addEventListener('xbuttondown', function() {xbutton = 'down'});
+                sceneEl.querySelector('#left-control').addEventListener('xbuttonup', function() {xbutton = 'up'});
+                sceneEl.querySelector('#left-control').addEventListener('ybuttondown', function() {ybutton = 'down'});
+                sceneEl.querySelector('#left-control').addEventListener('ybuttonup', function() {ybutton = 'up'});
+            },
+
+            tick: function () {
+                var sceneEl = document.querySelector('a-scene');
+                right_position = sceneEl.querySelector('#right-control').getAttribute('position');
+                right_rotation = sceneEl.querySelector('#right-control').getAttribute('rotation');
+                left_position = sceneEl.querySelector('#left-control').getAttribute('position');
+                left_rotation = sceneEl.querySelector('#left-control').getAttribute('rotation');
+
+                // debug_console = sceneEl.querySelector('#debug_console');
+                // debug_console.setAttribute('text', 'value',
+                //     [right_position.x,
+                //     right_position.y,
+                //     right_position.z,
+                //     right_rotation.x,
+                //     right_rotation.y,
+                //     right_rotation.z,
+                //     abutton,
+                //     bbutton,
+                //     left_position.x,
+                //     left_position.y,
+                //     left_position.z,
+                //     left_rotation.x,
+                //     left_rotation.y,
+                //     left_rotation.z,
+                //     xbutton,
+                //     ybutton,].join('\n'));
+
+                if (socket.readyState != socket.OPEN) {
+                    return;
+                }
+
+                var sourceData = {
+                    etype: "PICO_USER_DEFINED_EVENT",
+                    ts: Date.now(),
+                    value: {
+                        left: {position: left_position, rotation: left_rotation},
+                        right: {position: right_position, rotation: right_rotation},
+                        leftState: {x: xbutton, y: ybutton},
+                        rightState: {a: abutton, b: bbutton},
+                    },
+                };
+                // console.log(sourceData);
+                socket.send(msgpack.serialize(sourceData));
+
+                // end function tick
+            },
+        });
+
+        function renderImage(image) {
+            if (imageDisplay.object3D.children[0] == undefined) {
+                return;
+            }
+
+            const url = URL.createObjectURL(new Blob([image], { type: 'image/jpeg' }));
+            // 创建纹理并更新材质
+            new THREE.TextureLoader().load(url, texture => {
+                texture.minFilter = THREE.LinearFilter;
+                texture.colorSpace = THREE.SRGBColorSpace;
+
+                // 更新平面材质
+                imageDisplay.object3D.children[0].material.map = texture;
+                imageDisplay.object3D.children[0].material.needsUpdate = true;
+
+                // 释放对象URL
+                URL.revokeObjectURL(url);
+            });
+        }
+
+        socket.onmessage = async (event) => {
+            const arrayBuffer = await event.data.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
+            let serverEvent = msgpack.deserialize(uint8Array)
+
+            const ts = serverEvent['ts']
+            const etype = serverEvent['etype']
+            for (const node of serverEvent['data']['nodes']) {
+                if (node.tag == 'ImageBackground') {
+                    renderImage(node.src);
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>
