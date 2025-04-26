@@ -12,12 +12,14 @@
     <a-scene xr-mode-ui="XRMode: xr" xr="optional: true" background="color: #222">
         <a-plane id="image-display" hide-on-enter-ar position="0 1.5 -2" width="3" height="2"
             rotation="0 0 0"></a-plane>
-        <a-entity id="right-control" hide-on-enter-ar meta-touch-controls="hand: right" track-pose="type: right"
-            trans-position trans-rotation></a-entity>
+        <a-entity id="right-control" hide-on-enter-ar meta-touch-controls="hand: right"
+            track-pose="right" trans-position trans-rotation></a-entity>
         <a-entity id="left-control" hide-on-enter-ar meta-touch-controls="hand: left"
-            track-pose="type: left"></a-entity>
+            track-pose="left" trans-position trans-rotation></a-entity>
 
-        <a-entity id="debug_console" position="-0.4 1.8 -0.4" text="anchor: left; width: 1; color: white; value: log">
+        <a-entity id="l_debug_console" position="-0.3 1.8 -0.4" text="anchor: left; width: 1; color: white; value: log">
+        </a-entity>
+        <a-entity id="r_debug_console" position="0.3 1.8 -0.4" text="anchor: left; width: 1; color: white; value: log">
         </a-entity>
     </a-scene>
 
@@ -26,12 +28,14 @@
         const wsUrl = urlParams.get('ws');
         const socket = new WebSocket(wsUrl)
         const imageDisplay = document.querySelector('#image-display');
-        var l_pose = { position: { x: 0, y: 0, z: 0 }, rotation: { w: 0, x: 0, y: 0, z: 0 }, marked: false }
-        var r_pose = { position: { x: 0, y: 0, z: 0 }, rotation: { w: 0, x: 0, y: 0, z: 0 }, marked: false }
+        var l_pose = { position: { x: 0, y: 0, z: 0 }, rotation: { w: 0, x: 0, y: 0, z: 0 }}
+        var r_pose = { position: { x: 0, y: 0, z: 0 }, rotation: { w: 0, x: 0, y: 0, z: 0 }}
         var l_btn = { axisClick: "false", axisX: 0, axisY: 0, indexTrig: 0, handTrig: false, keyOne: "false", keyTwo: "false" }
         var r_btn = { axisClick: "false", axisX: 0, axisY: 0, indexTrig: 0, handTrig: false, keyOne: "false", keyTwo: "false" }
         var l_state = null
         var r_state = null
+        var l_position_deta = { x: 0, y: 0, z: 0 }
+        var l_rotation_deta = { w: 0, x: 0, y: 0, z: 0 }
         var r_position_deta = { x: 0, y: 0, z: 0 }
         var r_rotation_deta = { w: 0, x: 0, y: 0, z: 0 }
 
@@ -71,19 +75,17 @@
             init: function () {
                 // Listen btn state
                 var sceneEl = document.querySelector('a-scene');
-                sceneEl.querySelector('#left-control').addEventListener('xbuttondown', function () { l_btn.keyOne = "true" });
+                sceneEl.querySelector('#left-control').addEventListener('xbuttondown', function () {l_btn.keyOne = "true";});
                 sceneEl.querySelector('#left-control').addEventListener('xbuttonup', function () { l_btn.keyOne = "false" });
                 sceneEl.querySelector('#left-control').addEventListener('ybuttondown', function () { l_btn.keyTwo = "true" });
                 sceneEl.querySelector('#left-control').addEventListener('ybuttonup', function () { l_btn.keyTwo = "false" });
                 sceneEl.querySelector('#left-control').addEventListener('triggerchanged', function (evt) { l_btn.indexTrig = evt.detail.value });
-                sceneEl.querySelector('#left-control').addEventListener('gripdown', function () { l_btn.handTrig = true });
-                sceneEl.querySelector('#left-control').addEventListener('gripup', function () { l_btn.handTrig = false });
+                sceneEl.querySelector('#left-control').addEventListener('gripchanged', function (evt) { l_btn.handTrig = evt.detail.value > 0 });
                 sceneEl.querySelector('#left-control').addEventListener('thumbstickchanged', function (evt) { l_btn.axisClick = evt.detail.pressed ? "true" : "false" });
                 sceneEl.querySelector('#left-control').addEventListener('thumbstickmoved', function (evt) { l_btn.axisX = evt.detail.x; l_btn.axisY = evt.detail.y });
-                sceneEl.querySelector('#right-control').addEventListener('abuttondown', function () {
-                    r_btn.keyOne = "true";
-                    r_pose.marked = false;
-                });
+
+
+                sceneEl.querySelector('#right-control').addEventListener('abuttondown', function () {r_btn.keyOne = "true";});
                 sceneEl.querySelector('#right-control').addEventListener('abuttonup', function () { r_btn.keyOne = "false" });
                 sceneEl.querySelector('#right-control').addEventListener('bbuttondown', function () { r_btn.keyTwo = "true" });
                 sceneEl.querySelector('#right-control').addEventListener('bbuttonup', function () { r_btn.keyTwo = "false" });
@@ -94,65 +96,65 @@
             },
 
             tick: function () {
-                if (this.data.includes('left')) {
+                if (this.data === 'left') {
                     var sceneEl = document.querySelector('a-scene');
-                    var l_position = sceneEl.querySelector('#left-control').getAttribute('position');
-                    var l_rotation = sceneEl.querySelector('#left-control').getAttribute('rotation');
+                    var l_position = sceneEl.querySelector('#left-control').getAttribute('trans-position');
+                    var l_rotation = sceneEl.querySelector('#left-control').getAttribute('trans-rotation');
+                    if (!l_position || !l_rotation) {
+                        return;
+                    }
 
-                    l_position_deta = {
-                        x: l_position.x - l_pose.position.x,
-                        y: l_position.y - l_pose.position.y,
-                        z: l_position.z - l_pose.position.z
-                    };
-                    l_rotation_deta = {
-                        w: 0,
-                        x: l_rotation.x - l_pose.rotation.x,
-                        y: l_rotation.y - l_pose.rotation.y,
-                        z: l_rotation.z - l_pose.rotation.z
-                    };
+                    if (!l_btn.handTrig) {
+                        l_pose.position.x = l_position.x;
+                        l_pose.position.y = l_position.y;
+                        l_pose.position.z = l_position.z;
+                        l_pose.rotation.x = l_rotation.x;
+                        l_pose.rotation.y = l_rotation.y;
+                        l_pose.rotation.z = l_rotation.z;
+                    }
+
+                    l_position_deta.x = l_position.x - l_pose.position.x
+                    l_position_deta.y = l_position.y - l_pose.position.y
+                    l_position_deta.z = l_position.z - l_pose.position.z
+
+                    l_rotation_deta.x = l_rotation.x - l_pose.rotation.x
+                    l_rotation_deta.y = l_rotation.y - l_pose.rotation.y
+                    l_rotation_deta.z = l_rotation.z - l_pose.rotation.z
+
+                    debug_console = sceneEl.querySelector('#l_debug_console');
+                    debug_console.setAttribute('text', 'value',
+                        [l_position_deta.x,
+                        l_position_deta.y,
+                        l_position_deta.z,
+                        l_rotation_deta.x*180/Math.PI,
+                        l_rotation_deta.y*180/Math.PI,
+                        l_rotation_deta.z*180/Math.PI,].join('\n'));
 
                     l_state = {
                         position: l_position_deta,
                         rotation: l_rotation_deta,
-                        axisClick: r_btn.axisClick,
-                        axisX: r_btn.axisX,
-                        axisY: r_btn.axisY,
+                        axisClick: l_btn.axisClick,
+                        axisX: l_btn.axisX,
+                        axisY: l_btn.axisY,
                         indexTrig: l_btn.indexTrig,
                         handTrig: l_btn.handTrig,
                         keyOne: l_btn.keyOne,
-                        keyTwo: l_btn.keyTwo
+                        keyTwo: l_btn.keyTwo,
+                        ts: Date.now()
                     }
-
-                    l_pose.position.x = l_position.x
-                    l_pose.position.y = l_position.y
-                    l_pose.position.z = l_position.z
-                    l_pose.rotation.x = l_rotation.x
-                    l_pose.rotation.y = l_rotation.y
-                    l_pose.rotation.z = l_rotation.z
                 } else {
                     var sceneEl = document.querySelector('a-scene');
                     var r_position = sceneEl.querySelector('#right-control').getAttribute('trans-position');
                     var r_rotation = sceneEl.querySelector('#right-control').getAttribute('trans-rotation');
 
-                    if (r_pose.marked == false) {
+                    if (!r_btn.handTrig) {
                         r_pose.position.x = r_position.x;
                         r_pose.position.y = r_position.y;
                         r_pose.position.z = r_position.z;
                         r_pose.rotation.x = r_rotation.x;
                         r_pose.rotation.y = r_rotation.y;
                         r_pose.rotation.z = r_rotation.z;
-                        r_pose.marked = true;
                     }
-
-                    debug_console = sceneEl.querySelector('#debug_console');
-                    debug_console.setAttribute('text', 'value',
-                        [r_position.x,
-                        r_position.y,
-                        r_position.z,
-                        r_rotation.x,
-                        r_rotation.y,
-                        r_rotation.z,].join('\n'));
-
 
                     r_position_deta.x = r_position.x - r_pose.position.x
                     r_position_deta.y = r_position.y - r_pose.position.y
@@ -161,6 +163,15 @@
                     r_rotation_deta.x = r_rotation.x - r_pose.rotation.x
                     r_rotation_deta.y = r_rotation.y - r_pose.rotation.y
                     r_rotation_deta.z = r_rotation.z - r_pose.rotation.z
+
+                    debug_console = sceneEl.querySelector('#r_debug_console');
+                    debug_console.setAttribute('text', 'value',
+                        [r_position_deta.x,
+                        r_position_deta.y,
+                        r_position_deta.z,
+                        r_rotation_deta.x*180/Math.PI,
+                        r_rotation_deta.y*180/Math.PI,
+                        r_rotation_deta.z*180/Math.PI,].join('\n'));
 
                     r_state = {
                         position: r_position_deta,
@@ -176,25 +187,25 @@
                     }
                 }
 
-
-                if (l_state == null) {
+                if (this.data === "right") {
                     return;
                 }
 
-                if (r_state == null) {
+                if (l_state === null) {
+                    return;
+                }
+
+                if (r_state === null) {
                     return;
                 }
 
                 var sourceData = {
                     etype: "PICO_USER_DEFINED_EVENT",
                     ts: Date.now(),
-                    value: [
-                        l_state, r_state]
+                    value: [l_state, r_state]
                 };
 
-                if (socket.readyState != socket.OPEN) {
-                    return;
-                }
+                if (socket.readyState != socket.OPEN) {return;}
 
                 socket.send(msgpack.serialize(sourceData));
                 l_state = null
