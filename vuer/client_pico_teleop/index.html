@@ -13,9 +13,9 @@
         <a-plane id="image-display" hide-on-enter-ar position="0 1.5 -2" width="3" height="2"
             rotation="0 0 0"></a-plane>
         <a-entity id="right-control" hide-on-enter-ar meta-touch-controls="hand: right"
-            track-pose="right" trans-position trans-rotation></a-entity>
+            track-pose="hand: right"></a-entity>
         <a-entity id="left-control" hide-on-enter-ar meta-touch-controls="hand: left"
-            track-pose="left" trans-position trans-rotation></a-entity>
+            track-pose="hand: left"></a-entity>
 
         <a-entity id="l_debug_console" position="-0.3 1.8 -0.4" text="anchor: left; width: 1; color: white; value: log">
         </a-entity>
@@ -38,39 +38,16 @@
         var l_rotation_deta = { w: 0, x: 0, y: 0, z: 0 }
         var r_position_deta = { x: 0, y: 0, z: 0 }
         var r_rotation_deta = { w: 0, x: 0, y: 0, z: 0 }
-
-
-        AFRAME.registerComponent('trans-position', {
-            schema: { type: 'vec3' },
-            init: function () {
-                this.data.x = this.el.getAttribute('position').x;
-                this.data.y = this.el.getAttribute('position').y;
-                this.data.z = -this.el.getAttribute('position').z;  // z 前后
-            },
-            tick: function () {
-                this.data.x = this.el.getAttribute('position').x;
-                this.data.y = this.el.getAttribute('position').y;
-                this.data.z = -this.el.getAttribute('position').z;  // z 前后
-            },
-        });
-
-        AFRAME.registerComponent('trans-rotation', {
-            schema: { type: 'vec3' },
-            init: function () {
-                this.data.x = this.el.getAttribute('rotation').x * (Math.PI / 180);
-                this.data.y = this.el.getAttribute('rotation').y * (Math.PI / 180);
-                this.data.z = this.el.getAttribute('rotation').z * (Math.PI / 180);
-            },
-            tick: function () {
-                this.data.x = this.el.getAttribute('rotation').x * (Math.PI / 180);
-                this.data.y = this.el.getAttribute('rotation').y * (Math.PI / 180);
-                this.data.z = this.el.getAttribute('rotation').z * (Math.PI / 180);
-            },
-        });
+        var last_send_ts = 0;
+        var fps = 24;
 
         // Register a custom component to listen to controller pose data
         AFRAME.registerComponent('track-pose', {
-            schema: { type: 'string' },
+            schema: {
+                hand: { default: "left" },
+                position: { type: "vec4" },
+                orientation: { type: "vec4" },
+            },
 
             init: function () {
                 // Listen btn state
@@ -93,42 +70,131 @@
                 sceneEl.querySelector('#right-control').addEventListener('gripchanged', function (evt) { r_btn.handTrig = evt.detail.value > 0 });
                 sceneEl.querySelector('#right-control').addEventListener('thumbstickchanged', function (evt) { r_btn.axisClick = evt.detail.pressed ? "true" : "false" });
                 sceneEl.querySelector('#right-control').addEventListener('thumbstickmoved', function (evt) { r_btn.axisX = evt.detail.x; r_btn.axisY = evt.detail.y });
+            
+                this.controllers = [];
+                this.onInputSourcesChange = this.onInputSourcesChange.bind(this);
+                this.onEnterVR = this.onEnterVR.bind(this);
+                this.el.sceneEl.addEventListener('enter-vr', this.onEnterVR);
+
+                this.onExitVR = this.onExitVR.bind(this);
+                this.el.sceneEl.addEventListener('exit-vr', this.onExitVR);
+            },
+
+            onEnterVR: function () {
+                var xrSession = this.el.sceneEl.xrSession;
+                if (!xrSession) { return; }
+                this.el.sceneEl.xrSession.addEventListener('inputsourceschange', this.onInputSourcesChange);
+            },
+
+            onExitVR: function () {
+                this.referenceSpace = undefined;
+                this.controller = [];
+            },
+
+            onInputSourcesChange: function () {
+                var self = this;
+                var xrSession = this.el.sceneEl.xrSession;
+                var refspace = this.el.sceneEl.systems.webxr.sessionReferenceSpaceType;
+                var data = self.data;
+                xrSession.requestReferenceSpace(refspace).then(function (referenceSpace) {
+                    self.referenceSpace = referenceSpace;
+                }).catch(function (err) {
+                    self.el.sceneEl.systems.webxr.warnIfFeatureNotRequested(
+                        refspace,
+                        'tracked-controls uses reference space "' + refspace + '".');
+                    throw err;
+                });
+
+                self.controllers = xrSession.inputSources;
             },
 
             tick: function () {
-                if (this.data === 'left') {
+                var i;
+                var handednessMatched;
+                var pose;
+                var controller = null;
+                var self = this
+                var frame = this.el.sceneEl.frame;
+                var data = this.data
+                var xrSession = this.el.xrSession;
+                var position, orientation;
+
+                if (!self.referenceSpace || !frame) {return;}
+
+                for (i = 0; i < self.controllers.length; i++) {
+                    handednessMatched = self.controllers[i].handedness === data.hand;
+                    if (handednessMatched) {
+                        controller = self.controllers[i];
+                        break;
+                    }
+                }
+
+                if (!controller) {return;}
+
+                // const gripSpace = controller.gripSpace
+                // controller.targetRaySpace
+                pose = frame.getPose(controller.gripSpace, self.referenceSpace);
+                if (!pose) { return; }
+
+                position = pose.transform.position;
+                orientation = pose.transform.orientation;
+                if (self.data.hand === 'left') {
                     var sceneEl = document.querySelector('a-scene');
-                    var l_position = sceneEl.querySelector('#left-control').getAttribute('trans-position');
-                    var l_rotation = sceneEl.querySelector('#left-control').getAttribute('trans-rotation');
-                    if (!l_position || !l_rotation) {
+                    if (!position || !orientation) {
                         return;
                     }
 
+                    euler = 
+                    new THREE.Euler().setFromQuaternion(
+                        new THREE.Quaternion(
+                            orientation.x,
+                            orientation.y,
+                            orientation.z,
+                            orientation.w).normalize(),"XYZ");
+
                     if (!l_btn.handTrig) {
-                        l_pose.position.x = l_position.x;
-                        l_pose.position.y = l_position.y;
-                        l_pose.position.z = l_position.z;
-                        l_pose.rotation.x = l_rotation.x;
-                        l_pose.rotation.y = l_rotation.y;
-                        l_pose.rotation.z = l_rotation.z;
+                        l_pose.position.x = position.x;
+                        l_pose.position.y = position.y;
+                        l_pose.position.z = -position.z;
+                        l_pose.rotation.x = -euler.x;
+                        l_pose.rotation.y = euler.y;
+                        l_pose.rotation.z = -euler.z;
+                        l_pose.rotation.w = 0;
                     }
 
-                    l_position_deta.x = l_position.x - l_pose.position.x
-                    l_position_deta.y = l_position.y - l_pose.position.y
-                    l_position_deta.z = l_position.z - l_pose.position.z
+                    var pos_scale = 1.0
+                    l_position_deta.x = true ? (position.x - l_pose.position.x)*pos_scale : 0;
+                    l_position_deta.y = true ? (position.y - l_pose.position.y)*pos_scale : 0;
+                    l_position_deta.z = true ? (-position.z - l_pose.position.z)*pos_scale : 0;
 
-                    l_rotation_deta.x = l_rotation.x - l_pose.rotation.x
-                    l_rotation_deta.y = l_rotation.y - l_pose.rotation.y
-                    l_rotation_deta.z = l_rotation.z - l_pose.rotation.z
+                    var rot_scale = 1.0
+                    // x: 俯仰角
+                    // y: 航向角
+                    // z: 横滚角
+
+                    // 机械臂
+                    // x: 横滚角
+                    // y: 航向角
+                    // z: 俯仰角
+                    l_rotation_deta.x = false ? (euler.z - l_pose.rotation.z)*rot_scale : 0
+                    l_rotation_deta.y = false ? (-euler.y - l_pose.rotation.y)*rot_scale : 0
+                    l_rotation_deta.z = true ? (-euler.x - l_pose.rotation.x)*rot_scale : 0
+                    l_rotation_deta.w = 0;
+                    if (l_rotation_deta.x >= 0) {
+                        l_rotation_deta.x = Math.PI - l_rotation_deta.x;
+                    } else {
+                        l_rotation_deta.x = -Math.PI - l_rotation_deta.x;
+                    }
 
                     debug_console = sceneEl.querySelector('#l_debug_console');
                     debug_console.setAttribute('text', 'value',
                         [l_position_deta.x,
                         l_position_deta.y,
                         l_position_deta.z,
-                        l_rotation_deta.x*180/Math.PI,
-                        l_rotation_deta.y*180/Math.PI,
-                        l_rotation_deta.z*180/Math.PI,].join('\n'));
+                        l_rotation_deta.x,
+                        l_rotation_deta.y,
+                        l_rotation_deta.z,
+                        l_rotation_deta.w].join('\n'));
 
                     l_state = {
                         position: l_position_deta,
@@ -144,34 +210,60 @@
                     }
                 } else {
                     var sceneEl = document.querySelector('a-scene');
-                    var r_position = sceneEl.querySelector('#right-control').getAttribute('trans-position');
-                    var r_rotation = sceneEl.querySelector('#right-control').getAttribute('trans-rotation');
+
+                    euler = 
+                    new THREE.Euler().setFromQuaternion(
+                        new THREE.Quaternion(
+                            orientation.x,
+                            orientation.y,
+                            orientation.z,
+                            orientation.w).normalize(),"XYZ");
 
                     if (!r_btn.handTrig) {
-                        r_pose.position.x = r_position.x;
-                        r_pose.position.y = r_position.y;
-                        r_pose.position.z = r_position.z;
-                        r_pose.rotation.x = r_rotation.x;
-                        r_pose.rotation.y = r_rotation.y;
-                        r_pose.rotation.z = r_rotation.z;
+                        r_pose.position.x = position.x;
+                        r_pose.position.y = position.y;
+                        r_pose.position.z = -position.z;
+                        r_pose.rotation.x = -euler.x;
+                        r_pose.rotation.y = euler.y;
+                        r_pose.rotation.z = -euler.z;
+                        r_pose.rotation.w = 0;
                     }
 
-                    r_position_deta.x = r_position.x - r_pose.position.x
-                    r_position_deta.y = r_position.y - r_pose.position.y
-                    r_position_deta.z = r_position.z - r_pose.position.z
+                    var pos_scale = 1.0
+                    r_position_deta.x = true ? (position.x - r_pose.position.x)*pos_scale : 0;
+                    r_position_deta.y = true ? (position.y - r_pose.position.y)*pos_scale : 0;
+                    r_position_deta.z = true ? (-position.z - r_pose.position.z)*pos_scale : 0;
 
-                    r_rotation_deta.x = r_rotation.x - r_pose.rotation.x
-                    r_rotation_deta.y = r_rotation.y - r_pose.rotation.y
-                    r_rotation_deta.z = r_rotation.z - r_pose.rotation.z
+                    var rot_scale = 0.8
+                    // 手柄
+                    // x: 俯仰角
+                    // y: 航向角
+                    // z: 横滚角
+
+                    // 机械臂
+                    // x: 横滚角
+                    // y: 航向角
+                    // z: 俯仰角
+                    r_rotation_deta.x = false ? (euler.z - r_pose.rotation.z)*rot_scale : 0
+                    r_rotation_deta.y = false ? (-euler.y - r_pose.rotation.y)*rot_scale : 0
+                    r_rotation_deta.z = true ? (-euler.x - r_pose.rotation.x)*rot_scale : 0
+                    r_rotation_deta.w = 0;
+                    if (r_rotation_deta.x >= 0) {
+                        r_rotation_deta.x = Math.PI - r_rotation_deta.x;
+                    } else {
+                        r_rotation_deta.x = -Math.PI - r_rotation_deta.x;
+                    }
 
                     debug_console = sceneEl.querySelector('#r_debug_console');
                     debug_console.setAttribute('text', 'value',
                         [r_position_deta.x,
                         r_position_deta.y,
                         r_position_deta.z,
-                        r_rotation_deta.x*180/Math.PI,
-                        r_rotation_deta.y*180/Math.PI,
-                        r_rotation_deta.z*180/Math.PI,].join('\n'));
+                        r_rotation_deta.x,
+                        r_rotation_deta.y,
+                        r_rotation_deta.z,
+                        r_rotation_deta.w,
+                        ].join('\n'));
 
                     r_state = {
                         position: r_position_deta,
@@ -187,7 +279,7 @@
                     }
                 }
 
-                if (this.data === "right") {
+                if (this.data.hand === "left") {
                     return;
                 }
 
@@ -207,7 +299,11 @@
 
                 if (socket.readyState != socket.OPEN) {return;}
 
-                socket.send(msgpack.serialize(sourceData));
+                if (r_state.ts - last_send_ts >= 1000.0/fps) {
+                    socket.send(msgpack.serialize(sourceData));
+                    last_send_ts = r_state.ts;
+                }
+                
                 l_state = null
                 r_state = null
                 // end function tick
