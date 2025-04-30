@@ -28,8 +28,8 @@
         const wsUrl = urlParams.get('ws');
         const socket = new WebSocket(wsUrl)
         const imageDisplay = document.querySelector('#image-display');
-        var l_pose = { position: { x: 0, y: 0, z: 0 }, rotation: { w: 0, x: 0, y: 0, z: 0 }}
-        var r_pose = { position: { x: 0, y: 0, z: 0 }, rotation: { w: 0, x: 0, y: 0, z: 0 }}
+        var l_pose = { position: { x: 0, y: 0, z: 0 }, rotation: { w: 0, x: 0, y: 0, z: 0 } }
+        var r_pose = { position: { x: 0, y: 0, z: 0 }, rotation: { w: 0, x: 0, y: 0, z: 0 } }
         var l_btn = { axisClick: "false", axisX: 0, axisY: 0, indexTrig: 0, handTrig: false, keyOne: "false", keyTwo: "false" }
         var r_btn = { axisClick: "false", axisX: 0, axisY: 0, indexTrig: 0, handTrig: false, keyOne: "false", keyTwo: "false" }
         var l_state = null
@@ -52,7 +52,7 @@
             init: function () {
                 // Listen btn state
                 var sceneEl = document.querySelector('a-scene');
-                sceneEl.querySelector('#left-control').addEventListener('xbuttondown', function () {l_btn.keyOne = "true";});
+                sceneEl.querySelector('#left-control').addEventListener('xbuttondown', function () { l_btn.keyOne = "true"; });
                 sceneEl.querySelector('#left-control').addEventListener('xbuttonup', function () { l_btn.keyOne = "false" });
                 sceneEl.querySelector('#left-control').addEventListener('ybuttondown', function () { l_btn.keyTwo = "true" });
                 sceneEl.querySelector('#left-control').addEventListener('ybuttonup', function () { l_btn.keyTwo = "false" });
@@ -62,7 +62,7 @@
                 sceneEl.querySelector('#left-control').addEventListener('thumbstickmoved', function (evt) { l_btn.axisX = evt.detail.x; l_btn.axisY = evt.detail.y });
 
 
-                sceneEl.querySelector('#right-control').addEventListener('abuttondown', function () {r_btn.keyOne = "true";});
+                sceneEl.querySelector('#right-control').addEventListener('abuttondown', function () { r_btn.keyOne = "true"; });
                 sceneEl.querySelector('#right-control').addEventListener('abuttonup', function () { r_btn.keyOne = "false" });
                 sceneEl.querySelector('#right-control').addEventListener('bbuttondown', function () { r_btn.keyTwo = "true" });
                 sceneEl.querySelector('#right-control').addEventListener('bbuttonup', function () { r_btn.keyTwo = "false" });
@@ -70,7 +70,7 @@
                 sceneEl.querySelector('#right-control').addEventListener('gripchanged', function (evt) { r_btn.handTrig = evt.detail.value > 0 });
                 sceneEl.querySelector('#right-control').addEventListener('thumbstickchanged', function (evt) { r_btn.axisClick = evt.detail.pressed ? "true" : "false" });
                 sceneEl.querySelector('#right-control').addEventListener('thumbstickmoved', function (evt) { r_btn.axisX = evt.detail.x; r_btn.axisY = evt.detail.y });
-            
+
                 this.controllers = [];
                 this.onInputSourcesChange = this.onInputSourcesChange.bind(this);
                 this.onEnterVR = this.onEnterVR.bind(this);
@@ -119,7 +119,7 @@
                 var xrSession = this.el.xrSession;
                 var position, orientation;
 
-                if (!self.referenceSpace || !frame) {return;}
+                if (!self.referenceSpace || !frame) { return; }
 
                 for (i = 0; i < self.controllers.length; i++) {
                     handednessMatched = self.controllers[i].handedness === data.hand;
@@ -129,7 +129,7 @@
                     }
                 }
 
-                if (!controller) {return;}
+                if (!controller) { return; }
 
                 // const gripSpace = controller.gripSpace
                 // controller.targetRaySpace
@@ -144,13 +144,13 @@
                         return;
                     }
 
-                    euler = 
-                    new THREE.Euler().setFromQuaternion(
-                        new THREE.Quaternion(
-                            orientation.x,
-                            orientation.y,
-                            orientation.z,
-                            orientation.w).normalize(),"XYZ");
+                    euler =
+                        new THREE.Euler().setFromQuaternion(
+                            new THREE.Quaternion(
+                                orientation.x,
+                                orientation.y,
+                                orientation.z,
+                                orientation.w).normalize(), "XYZ");
 
                     if (!l_btn.handTrig) {
                         l_pose.position.x = position.x;
@@ -163,9 +163,9 @@
                     }
 
                     var pos_scale = 1.0
-                    l_position_deta.x = true ? (position.x - l_pose.position.x)*pos_scale : 0;
-                    l_position_deta.y = true ? (position.y - l_pose.position.y)*pos_scale : 0;
-                    l_position_deta.z = true ? (-position.z - l_pose.position.z)*pos_scale : 0;
+                    l_position_deta.x = true ? (position.x - l_pose.position.x) * pos_scale : 0;
+                    l_position_deta.y = true ? (position.y - l_pose.position.y) * pos_scale : 0;
+                    l_position_deta.z = true ? (-position.z - l_pose.position.z) * pos_scale : 0;
 
                     var rot_scale = 1.0
                     // x: 俯仰角
@@ -176,9 +176,9 @@
                     // x: 横滚角
                     // y: 航向角
                     // z: 俯仰角
-                    l_rotation_deta.x = false ? (euler.z - l_pose.rotation.z)*rot_scale : 0
-                    l_rotation_deta.y = false ? (-euler.y - l_pose.rotation.y)*rot_scale : 0
-                    l_rotation_deta.z = true ? (-euler.x - l_pose.rotation.x)*rot_scale : 0
+                    l_rotation_deta.x = false ? (euler.z - l_pose.rotation.z) * rot_scale : 0
+                    l_rotation_deta.y = false ? (-euler.y - l_pose.rotation.y) * rot_scale : 0
+                    l_rotation_deta.z = true ? (-euler.x - l_pose.rotation.x) * rot_scale : 0
                     l_rotation_deta.w = 0;
                     if (l_rotation_deta.x >= 0) {
                         l_rotation_deta.x = Math.PI - l_rotation_deta.x;
@@ -211,13 +211,13 @@
                 } else {
                     var sceneEl = document.querySelector('a-scene');
 
-                    euler = 
-                    new THREE.Euler().setFromQuaternion(
-                        new THREE.Quaternion(
-                            orientation.x,
-                            orientation.y,
-                            orientation.z,
-                            orientation.w).normalize(),"XYZ");
+                    euler =
+                        new THREE.Euler().setFromQuaternion(
+                            new THREE.Quaternion(
+                                orientation.x,
+                                orientation.y,
+                                orientation.z,
+                                orientation.w).normalize(), "XYZ");
 
                     if (!r_btn.handTrig) {
                         r_pose.position.x = position.x;
@@ -230,9 +230,9 @@
                     }
 
                     var pos_scale = 1.0
-                    r_position_deta.x = true ? (position.x - r_pose.position.x)*pos_scale : 0;
-                    r_position_deta.y = true ? (position.y - r_pose.position.y)*pos_scale : 0;
-                    r_position_deta.z = true ? (-position.z - r_pose.position.z)*pos_scale : 0;
+                    r_position_deta.x = true ? (position.x - r_pose.position.x) * pos_scale : 0;
+                    r_position_deta.y = true ? (position.y - r_pose.position.y) * pos_scale : 0;
+                    r_position_deta.z = true ? (-position.z - r_pose.position.z) * pos_scale : 0;
 
                     var rot_scale = 0.8
                     // 手柄
@@ -244,9 +244,9 @@
                     // x: 横滚角
                     // y: 航向角
                     // z: 俯仰角
-                    r_rotation_deta.x = false ? (euler.z - r_pose.rotation.z)*rot_scale : 0
-                    r_rotation_deta.y = false ? (-euler.y - r_pose.rotation.y)*rot_scale : 0
-                    r_rotation_deta.z = true ? (-euler.x - r_pose.rotation.x)*rot_scale : 0
+                    r_rotation_deta.x = false ? (euler.z - r_pose.rotation.z) * rot_scale : 0
+                    r_rotation_deta.y = false ? (-euler.y - r_pose.rotation.y) * rot_scale : 0
+                    r_rotation_deta.z = true ? (-euler.x - r_pose.rotation.x) * rot_scale : 0
                     r_rotation_deta.w = 0;
                     if (r_rotation_deta.x >= 0) {
                         r_rotation_deta.x = Math.PI - r_rotation_deta.x;
@@ -297,13 +297,13 @@
                     value: [l_state, r_state]
                 };
 
-                if (socket.readyState != socket.OPEN) {return;}
+                if (socket.readyState != socket.OPEN) { return; }
 
-                if (r_state.ts - last_send_ts >= 1000.0/fps) {
+                if (r_state.ts - last_send_ts >= 1000.0 / fps) {
                     socket.send(msgpack.serialize(sourceData));
                     last_send_ts = r_state.ts;
                 }
-                
+
                 l_state = null
                 r_state = null
                 // end function tick
