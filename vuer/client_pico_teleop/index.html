@@ -176,9 +176,9 @@
                     // x: 横滚角
                     // y: 航向角
                     // z: 俯仰角
-                    l_rotation_deta.x = false ? (euler.z - l_pose.rotation.z) * rot_scale : 0
-                    l_rotation_deta.y = false ? (-euler.y - l_pose.rotation.y) * rot_scale : 0
-                    l_rotation_deta.z = true ? (-euler.x - l_pose.rotation.x) * rot_scale : 0
+                    l_rotation_deta.x = true ? (euler.z - l_pose.rotation.z)*rot_scale : 0
+                    l_rotation_deta.y = true ? (-euler.y - l_pose.rotation.y)*rot_scale : 0
+                    l_rotation_deta.z = true ? (-euler.x - l_pose.rotation.x)*rot_scale : 0
                     l_rotation_deta.w = 0;
                     if (l_rotation_deta.x >= 0) {
                         l_rotation_deta.x = Math.PI - l_rotation_deta.x;
@@ -244,9 +244,9 @@
                     // x: 横滚角
                     // y: 航向角
                     // z: 俯仰角
-                    r_rotation_deta.x = false ? (euler.z - r_pose.rotation.z) * rot_scale : 0
-                    r_rotation_deta.y = false ? (-euler.y - r_pose.rotation.y) * rot_scale : 0
-                    r_rotation_deta.z = true ? (-euler.x - r_pose.rotation.x) * rot_scale : 0
+                    r_rotation_deta.x = true ? (euler.z - r_pose.rotation.z)*rot_scale : 0
+                    r_rotation_deta.y = true ? (-euler.y - r_pose.rotation.y)*rot_scale : 0
+                    r_rotation_deta.z = true ? (-euler.x - r_pose.rotation.x)*rot_scale : 0
                     r_rotation_deta.w = 0;
                     if (r_rotation_deta.x >= 0) {
                         r_rotation_deta.x = Math.PI - r_rotation_deta.x;
